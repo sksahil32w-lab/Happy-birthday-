@@ -69,6 +69,44 @@
             pointer-events: none;
         }
 
+        /* Initial Fullscreen Activation Gate */
+        #enter-fullscreen-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(1, 2, 4, 0.92);
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.6s ease;
+        }
+
+        .enter-btn {
+            padding: 16px 45px;
+            font-size: 4.5vmin;
+            font-weight: 700;
+            color: #ffffff;
+            background: rgba(0, 136, 255, 0.15);
+            border: 2px solid var(--primary-glow);
+            border-radius: 50px;
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.5), inset 0 0 15px rgba(0, 243, 255, 0.2);
+            cursor: pointer;
+            pointer-events: auto;
+            transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+            animation: pulseButton 2s infinite ease-in-out;
+            font-family: inherit;
+            letter-spacing: 1px;
+        }
+
+        .enter-btn:active {
+            transform: scale(0.95);
+            background: rgba(0, 136, 255, 0.35);
+        }
+
         .countdown-text {
             position: absolute;
             top: 50%;
@@ -202,6 +240,7 @@
         @media (orientation: portrait) {
             #rotate-guard { display: flex; }
             #app-container { display: none; }
+            #enter-fullscreen-overlay { display: none !important; }
         }
         @media (orientation: landscape) {
             #rotate-guard { display: none; }
@@ -240,6 +279,11 @@
     <div id="rotate-guard">
         <div class="phone-icon"></div>
         <div class="rotate-text">Rotate Device</div>
+    </div>
+
+    <!-- Initial Fullscreen Activation Overlay -->
+    <div id="enter-fullscreen-overlay">
+        <button id="start-btn" class="enter-btn">Tap to Start ✨</button>
     </div>
 
     <!-- Main Experience Container -->
@@ -289,22 +333,14 @@
         let dpr = 1;
 
         function resizeCanvas() {
-            // Cap DPR at 2 to prevent ultra-high-res phones from dropping frames
             dpr = Math.min(window.devicePixelRatio || 1, 2);
-            
-            // Use innerWidth/innerHeight to adapt dynamically to mobile browser UI changes
             canvas.width = window.innerWidth * dpr;
             canvas.height = window.innerHeight * dpr;
-            
             canvas.style.width = window.innerWidth + 'px';
             canvas.style.height = window.innerHeight + 'px';
-            
             ctx.scale(dpr, dpr);
 
-            // Dynamically adjust particle count based on screen width
             const totalParticles = Math.min(Math.floor(window.innerWidth / 3), 400);
-            
-            // Distribution: 50% back, 35% mid, 15% front
             LAYERS[0].count = Math.floor(totalParticles * 0.50);
             LAYERS[1].count = Math.floor(totalParticles * 0.35);
             LAYERS[2].count = Math.floor(totalParticles * 0.15);
@@ -318,16 +354,11 @@
             }
 
             reset(randomY = false) {
-                // Use innerWidth/Height logically, not multiplied by DPR (handled by ctx.scale)
                 this.x = Math.random() * window.innerWidth;
                 this.y = randomY ? Math.random() * window.innerHeight : (Math.random() * -100 - 50);
-                
                 this.char = CONFIG.characters[Math.floor(Math.random() * CONFIG.characters.length)];
-                
-                // Instead of Math.random every frame, update character every X frames
                 this.flickerDelay = Math.floor(Math.random() * 60) + 30; 
                 this.frames = 0;
-                
                 this.vx = 0;
                 this.vy = 0;
             }
@@ -348,8 +379,6 @@
                     if (this.y > window.innerHeight + 50) {
                         this.reset();
                     }
-                    
-                    // Efficient character flickering
                     this.frames++;
                     if (this.frames > this.flickerDelay) {
                         this.char = CONFIG.characters[Math.floor(Math.random() * CONFIG.characters.length)];
@@ -380,7 +409,6 @@
                     const dy = p.y - centerY;
                     const distance = Math.sqrt(dx*dx + dy*dy) || 1;
                     
-                    // Explosive radial force
                     const force = (Math.random() * 35 + 15) / (distance * 0.02 + 1);
                     p.vx = (dx / distance) * force;
                     p.vy = (dy / distance) * force;
@@ -389,11 +417,9 @@
         }
 
         function animateCanvas() {
-            // Dynamic trail background. Brightens instantly on burst.
             ctx.fillStyle = isHyperdrive ? 'rgba(3, 5, 8, 0.1)' : 'rgba(1, 2, 4, 0.3)';
             ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
             
-            // Batched rendering: Setup styles exactly ONCE per layer instead of per particle.
             for (let i = 0; i < LAYERS.length; i++) {
                 const layer = LAYERS[i];
                 const particles = batchedParticles[i];
@@ -443,7 +469,6 @@
             elLetsGo.style.animation = `letsGoReveal 1.5s forwards ease-out`;
             await sleep(1500); 
 
-            // Reveal the button only after the intro is fully complete
             btnContinue.classList.add('visible');
         }
 
@@ -451,10 +476,8 @@
             const fade = document.getElementById('fade-overlay');
             const container = document.getElementById('app-container');
             
-            // Disable button to prevent multi-clicks
             e.target.style.pointerEvents = 'none';
             
-            // Add cinematic zoom & fade out transition
             container.style.transition = 'transform 1s cubic-bezier(0.25, 1, 0.5, 1)';
             container.style.transform = 'scale(1.5)';
             fade.classList.add('active');
@@ -465,20 +488,34 @@
             window.location.href = CONFIG.nextPageUrl;
         });
 
-        function checkOrientationAndStart() {
-            if (window.innerWidth > window.innerHeight) {
-                if (!isStarted) {
-                    initParticles();
-                    animateCanvas();
-                    playSequence();
-                }
+        // Trigger Fullscreen & Start Animation upon user tap
+        document.getElementById('start-btn').addEventListener('click', () => {
+            const overlay = document.getElementById('enter-fullscreen-overlay');
+            overlay.style.opacity = '0';
+            setTimeout(() => {
+                overlay.style.display = 'none';
+            }, 600);
+
+            // Request browser fullscreen API if supported
+            const docEl = document.documentElement;
+            if (docEl.requestFullscreen) {
+                docEl.requestFullscreen().catch(() => {});
+            } else if (docEl.webkitRequestFullscreen) {
+                docEl.webkitRequestFullscreen();
             }
-        }
+
+            if (window.innerWidth > window.innerHeight && !isStarted) {
+                initParticles();
+                animateCanvas();
+                playSequence();
+            }
+        });
 
         window.addEventListener('load', () => {
-            checkOrientationAndStart();
             window.matchMedia("(orientation: landscape)").addEventListener("change", (e) => {
-                if (e.matches) checkOrientationAndStart();
+                if (e.matches && isStarted) {
+                    // resumes nicely if rotated
+                }
             });
         });
 
