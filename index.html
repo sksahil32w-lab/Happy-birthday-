@@ -408,6 +408,9 @@
         </div>
 
         <div id="fade-overlay"></div>
+        
+        <!-- Background Music -->
+        <audio id="bg-music" src="music.mp3" loop preload="auto"></audio>
     </div>
 
     <script>
@@ -640,6 +643,12 @@
         document.getElementById('orb-btn').addEventListener('click', async () => {
             const entryContainer = document.getElementById('fullscreen-entry');
             entryContainer.style.pointerEvents = 'none'; 
+            
+            // Start background music immediately on user tap interaction
+            const bgMusic = document.getElementById('bg-music');
+            if (bgMusic && bgMusic.paused) {
+                bgMusic.play().catch(err => console.warn("Audio autoplay blocked:", err));
+            }
             
             try {
                 const docEl = document.documentElement;
