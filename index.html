@@ -2,14 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- Extremely strict viewport to prevent any zooming or scaling on mobile -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Cinematic Intro</title>
     
     <style>
         :root {
-            --primary-glow: #ff4d79;   /* Soft vibrant pink */
-            --secondary-glow: #ff99bb; /* Light magical pink */
-            --bg-color: #1a050c;       /* Deep romantic burgundy/black */
+            --primary-glow: #ff4d79;   
+            --secondary-glow: #ff99bb; 
+            --bg-color: #1a050c;       
             --heart-glow: rgba(255, 77, 121, 0.6);
         }
 
@@ -28,9 +29,12 @@
             height: 100dvh;
             background-color: var(--bg-color);
             overflow: hidden;
-            font-family: 'Georgia', 'Times New Roman', serif; /* Elegant, romantic font fallback */
+            font-family: 'Georgia', 'Times New Roman', serif;
             overscroll-behavior: none; 
             touch-action: none; 
+            /* Force fast text rendering on mobile DOM */
+            text-rendering: optimizeSpeed; 
+            -webkit-font-smoothing: antialiased;
         }
 
         #particle-canvas {
@@ -40,7 +44,9 @@
             width: 100vw;
             height: 100dvh;
             z-index: 1;
+            /* Strict GPU Acceleration */
             transform: translateZ(0); 
+            -webkit-transform: translateZ(0);
         }
 
         #app-container {
@@ -72,7 +78,12 @@
             opacity: 0;
             text-shadow: 0 0 20px var(--primary-glow), 0 0 40px var(--secondary-glow);
             letter-spacing: 2px;
+            /* Force strict mobile GPU layering to prevent frame drops */
             will-change: transform, opacity, filter;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
+            -webkit-transform-style: preserve-3d;
+            transform-style: preserve-3d;
         }
 
         .lets-go-text {
@@ -86,8 +97,10 @@
             text-shadow: 0 0 30px #ffffff, 0 0 60px var(--primary-glow), 0 0 100px var(--secondary-glow);
             white-space: nowrap;
             letter-spacing: 8px;
-            will-change: transform, opacity, filter;
             text-align: center;
+            will-change: transform, opacity, filter;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
         }
 
         .continue-btn {
@@ -108,10 +121,12 @@
             pointer-events: none;
             transition: opacity 0.8s ease, transform 0.2s ease, background 0.2s ease;
             animation: pulseButton 2.5s infinite ease-in-out;
-            will-change: transform, opacity;
             z-index: 20;
             font-family: inherit;
             letter-spacing: 2px;
+            will-change: transform, opacity;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
         }
 
         .continue-btn.visible {
@@ -136,6 +151,7 @@
             pointer-events: none;
             transition: opacity 1s ease-in-out;
             will-change: opacity;
+            transform: translateZ(0);
         }
 
         #fade-overlay.active {
@@ -234,6 +250,8 @@
             background-color: var(--bg-color);
             transition: opacity 0.8s ease, transform 0.8s ease;
             will-change: opacity, transform;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
         }
 
         .fullscreen-entry-container.hidden {
@@ -254,6 +272,8 @@
             justify-content: center;
             align-items: center;
             -webkit-tap-highlight-color: transparent;
+            -webkit-backface-visibility: hidden;
+            backface-visibility: hidden;
         }
 
         .orb-core {
@@ -270,6 +290,7 @@
             z-index: 2;
             transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s ease;
             animation: breathCore 2s infinite ease-in-out;
+            transform: translateZ(0);
         }
 
         .orb-icon {
@@ -298,7 +319,6 @@
             pointer-events: none;
         }
 
-        /* Styled as rotating tiny sparkles / heart auras */
         .ring-1 {
             width: 110px; height: 110px;
             border: 3px dashed var(--primary-glow);
@@ -329,7 +349,7 @@
         }
 
         .orb-button:active .orb-core {
-            transform: scale(0.85);
+            transform: scale(0.85) translateZ(0);
             background: rgba(255, 77, 121, 0.3);
             box-shadow: 0 0 40px rgba(255, 77, 121, 0.8), inset 0 0 30px rgba(255, 77, 121, 0.7);
         }
@@ -351,7 +371,6 @@
     </style>
 </head>
 <body>
-
     <!-- Portrait Orientation Guard -->
     <div id="rotate-guard">
         <div class="phone-icon"></div>
@@ -361,7 +380,7 @@
     <!-- Main Experience Container -->
     <div id="app-container">
         
-        <!-- Fullscreen Entry Layer (The new Glowing Heart Gateway) -->
+        <!-- Fullscreen Entry Layer (The Glowing Heart Gateway) -->
         <div id="fullscreen-entry" class="fullscreen-entry-container">
             <button id="orb-btn" class="orb-button">
                 <div class="orb-ring ring-1"></div>
@@ -396,11 +415,13 @@
             nextPageUrl: 'index2.html',
             numberDuration: 1200,    
             letsGoDuration: 2500,    
-            // Beautiful romantic emojis (Hearts, sparkles, magical petals)
             characters: ['❤️', '💕', '💗', '✨', '🌸', '💖', '🤍'],
         };
+        
+        // Cache character length for O(1) loop lookups instead of property access
+        const CHAR_LEN = CONFIG.characters.length;
 
-        // Mobile touch prevention (stops bounce/pull-to-refresh entirely)
+        // Strict Mobile touch prevention 
         document.addEventListener('touchmove', (e) => { e.preventDefault(); }, { passive: false });
         document.addEventListener('dblclick', (e) => { e.preventDefault(); }, { passive: false });
 
@@ -409,38 +430,50 @@
         let isHyperdrive = false;
 
         const canvas = document.getElementById('particle-canvas');
-        const ctx = canvas.getContext('2d', { alpha: false }); 
+        // Hardware acceleration hints: alpha false ensures no transparent blending with DOM behind it
+        const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true }); 
         const appContainer = document.getElementById('app-container');
 
-        // Batched Rendering Layers (Romantic theme coloring)
+        // Batched Rendering Layers
         const LAYERS = [
-            { size: 14, color: '#ff99bb', speedMult: 0.6, alpha: 0.4, count: 0 }, // Back (Slow, soft)
-            { size: 22, color: '#ff4d79', speedMult: 1.2, alpha: 0.7, count: 0 }, // Mid
-            { size: 34, color: '#ffffff', speedMult: 2.0, alpha: 1.0, count: 0 }  // Front (Fast, clear)
+            { size: 14, color: '#ff99bb', speedMult: 0.6, alpha: 0.4, count: 0, fontStr: '' },
+            { size: 22, color: '#ff4d79', speedMult: 1.2, alpha: 0.7, count: 0, fontStr: '' },
+            { size: 34, color: '#ffffff', speedMult: 2.0, alpha: 1.0, count: 0, fontStr: '' }
         ];
 
         let batchedParticles = [[], [], []];
         let dpr = 1;
+        
+        // **MOBILE OPTIMIZATION**: Cache viewport dimensions to prevent DOM layout thrashing in animation loop
+        let cw = window.innerWidth;
+        let ch = window.innerHeight;
 
         function resizeCanvas() {
-            // Cap DPR at 2 to prevent ultra-high-res phones from dropping frames
+            // Cap DPR to avoid overwhelming mobile GPUs
             dpr = Math.min(window.devicePixelRatio || 1, 2);
+            cw = window.innerWidth;
+            ch = window.innerHeight;
             
-            canvas.width = window.innerWidth * dpr;
-            canvas.height = window.innerHeight * dpr;
+            canvas.width = cw * dpr;
+            canvas.height = ch * dpr;
             
-            canvas.style.width = window.innerWidth + 'px';
-            canvas.style.height = window.innerHeight + 'px';
+            canvas.style.width = cw + 'px';
+            canvas.style.height = ch + 'px';
             
             ctx.scale(dpr, dpr);
 
             // Dynamically adjust particle count based on screen width
-            const totalParticles = Math.min(Math.floor(window.innerWidth / 3), 400);
+            const totalParticles = Math.min(Math.floor(cw / 3), 400);
             
-            // Distribution: 50% back, 35% mid, 15% front
+            // Distribution and Pre-calculated strings for the render loop
             LAYERS[0].count = Math.floor(totalParticles * 0.50);
+            LAYERS[0].fontStr = `normal ${LAYERS[0].size}px sans-serif`;
+            
             LAYERS[1].count = Math.floor(totalParticles * 0.35);
+            LAYERS[1].fontStr = `normal ${LAYERS[1].size}px sans-serif`;
+            
             LAYERS[2].count = Math.floor(totalParticles * 0.15);
+            LAYERS[2].fontStr = `normal ${LAYERS[2].size}px sans-serif`;
         }
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
@@ -451,11 +484,11 @@
             }
 
             reset(randomY = false) {
-                this.x = Math.random() * window.innerWidth;
-                this.y = randomY ? Math.random() * window.innerHeight : (Math.random() * -100 - 50);
+                // Use cached cw/ch directly
+                this.x = Math.random() * cw;
+                this.y = randomY ? Math.random() * ch : (Math.random() * -100 - 50);
                 
-                this.char = CONFIG.characters[Math.floor(Math.random() * CONFIG.characters.length)];
-                
+                this.char = CONFIG.characters[Math.floor(Math.random() * CHAR_LEN)];
                 this.flickerDelay = Math.floor(Math.random() * 60) + 30; 
                 this.frames = 0;
                 
@@ -469,27 +502,24 @@
                 if (isHyperdrive) {
                     this.x += this.vx;
                     this.y += this.vy;
-                    // Slightly more drag than original to smooth the transition into floating
                     this.vx *= 0.92; 
                     this.vy *= 0.92;
                     
-                    // Romantic addition: Gently float upward and sway after the burst
                     this.y -= 1.5; 
                     this.x += Math.sin(this.frames * 0.05) * 0.6;
                     
-                    if (this.x < -100 || this.x > window.innerWidth + 100 || 
-                        this.y < -100 || this.y > window.innerHeight + 100) {
+                    if (this.x < -100 || this.x > cw + 100 || 
+                        this.y < -100 || this.y > ch + 100) {
                         this.reset();
                     }
                 } else {
                     this.y += baseSpeed;
-                    if (this.y > window.innerHeight + 50) {
+                    if (this.y > ch + 50) {
                         this.reset();
                     }
                     
-                    // Efficient character flickering
                     if (this.frames > this.flickerDelay) {
-                        this.char = CONFIG.characters[Math.floor(Math.random() * CONFIG.characters.length)];
+                        this.char = CONFIG.characters[Math.floor(Math.random() * CHAR_LEN)];
                         this.frames = 0;
                     }
                 }
@@ -498,8 +528,10 @@
 
         function initParticles() {
             batchedParticles = [[], [], []];
-            for (let i = 0; i < LAYERS.length; i++) {
-                for (let j = 0; j < LAYERS[i].count; j++) {
+            const layersLen = LAYERS.length;
+            for (let i = 0; i < layersLen; i++) {
+                const count = LAYERS[i].count;
+                for (let j = 0; j < count; j++) {
                     batchedParticles[i].push(new MobileOptimizedParticle());
                 }
             }
@@ -507,17 +539,20 @@
 
         function triggerBurst() {
             isHyperdrive = true;
-            const centerX = window.innerWidth / 2;
-            const centerY = window.innerHeight / 2;
+            const centerX = cw / 2;
+            const centerY = ch / 2;
             
-            for (let i = 0; i < batchedParticles.length; i++) {
-                for (let j = 0; j < batchedParticles[i].length; j++) {
-                    const p = batchedParticles[i][j];
+            const layersLen = batchedParticles.length;
+            for (let i = 0; i < layersLen; i++) {
+                const particles = batchedParticles[i];
+                const pLen = particles.length;
+                
+                for (let j = 0; j < pLen; j++) {
+                    const p = particles[j];
                     const dx = p.x - centerX;
                     const dy = p.y - centerY;
                     const distance = Math.sqrt(dx*dx + dy*dy) || 1;
                     
-                    // Gentle, beautiful outward explosive force
                     const force = (Math.random() * 25 + 10) / (distance * 0.02 + 1);
                     p.vx = (dx / distance) * force;
                     p.vy = (dy / distance) * force;
@@ -526,20 +561,23 @@
         }
 
         function animateCanvas() {
-            // Dynamic trail background. Switches to a soft deep pinkish-black on burst.
+            // **MOBILE OPTIMIZATION**: Use cached dimensions. Fast fill.
             ctx.fillStyle = isHyperdrive ? 'rgba(42, 8, 19, 0.15)' : 'rgba(26, 5, 12, 0.3)';
-            ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
+            ctx.fillRect(0, 0, cw, ch);
             
-            // Batched rendering setup
-            for (let i = 0; i < LAYERS.length; i++) {
+            const layersLen = LAYERS.length;
+            
+            for (let i = 0; i < layersLen; i++) {
                 const layer = LAYERS[i];
                 const particles = batchedParticles[i];
+                const pLen = particles.length; // Cache length to prevent property lookup
                 
-                ctx.font = `normal ${layer.size}px sans-serif`;
+                // **MOBILE OPTIMIZATION**: Use pre-computed font strings
+                ctx.font = layer.fontStr;
                 ctx.fillStyle = isHyperdrive ? '#ffffff' : layer.color;
                 ctx.globalAlpha = isHyperdrive ? 1.0 : layer.alpha;
                 
-                for (let j = 0; j < particles.length; j++) {
+                for (let j = 0; j < pLen; j++) {
                     const p = particles[j];
                     p.update(layer.speedMult);
                     ctx.fillText(p.char, p.x, p.y);
@@ -599,7 +637,6 @@
             window.location.href = CONFIG.nextPageUrl;
         });
 
-        // Initialize cinematic sequence ONLY after fullscreen orb is tapped
         document.getElementById('orb-btn').addEventListener('click', async () => {
             const entryContainer = document.getElementById('fullscreen-entry');
             entryContainer.style.pointerEvents = 'none'; 
@@ -612,7 +649,7 @@
                     await docEl.webkitRequestFullscreen();
                 }
             } catch (err) {
-                console.warn("Fullscreen API failed/blocked, continuing gracefully");
+                // Silently continue if fullscreen API is blocked
             }
 
             entryContainer.classList.add('hidden');
@@ -630,4 +667,3 @@
     </script>
 </body>
 </html>
-```eof
